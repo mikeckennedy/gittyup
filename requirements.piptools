@@ -1,0 +1,7 @@
+# Production/Runtime Dependencies for Gitty Up
+# Compile with: uv pip compile requirements.piptools -o requirements.txt
+
+colorama
+click
+platformdirs
+diskcache
