@@ -283,7 +283,7 @@ def main(
     explain: bool,
 ) -> None:
     """
-    Gitty Up! - Automatically discover and update all git repositories in a directory tree.
+    Gitty Up - Automatically discover and update all git repositories in a directory tree.
 
     DIRECTORY: Path to scan for git repositories (default: current directory)
 
