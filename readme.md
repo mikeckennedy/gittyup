@@ -81,12 +81,8 @@ Dry-run mode, depth limits, custom exclusions, verbosity levels—you're in comp
 Install as a global CLI tool—no virtual environment needed!
 
 ```bash
-# Clone and navigate to the project
-git clone https://github.com/mikeckennedy/gittyup
-cd gittyup
-
 # Install as a global tool with uv
-uv tool install .
+uv tool install https://github.com/mikeckennedy/gittyup.git
 
 # That's it! Use from anywhere without activating venv
 gittyup --version
@@ -99,7 +95,8 @@ gittyup --version
 Traditional installation in a virtual environment:
 
 ```bash
-# Navigate to the project directory
+# Clone and navigate to the project
+git clone https://github.com/mikeckennedy/gittyup
 cd gittyup
 
 # Create and activate virtual environment
