@@ -7,6 +7,8 @@
 **Automatically discover and update all your Git repositories with one command**
 
 [![Python Version](https://img.shields.io/badge/python-3.13%2B-blue.svg)](https://www.python.org/downloads/)
+[![PyPI Version](https://img.shields.io/pypi/v/gittyup.svg)](https://pypi.org/project/gittyup/)
+[![PyPI Downloads](https://img.shields.io/pypi/dm/gittyup.svg)](https://pypi.org/project/gittyup/)
 [![Test Coverage](https://img.shields.io/badge/coverage-91.93%25-brightgreen.svg)](https://github.com)
 [![Tests](https://img.shields.io/badge/tests-216%20passing-brightgreen.svg)](https://github.com)
 [![Code Style](https://img.shields.io/badge/code%20style-ruff-black.svg)](https://github.com/astral-sh/ruff)
@@ -76,42 +78,45 @@ Dry-run mode, depth limits, custom exclusions, verbosity levels—you're in comp
 - **Git** available in your PATH
 - **uv** package manager (recommended) or pip
 
-### Method 1: Global Tool Installation (Recommended) ⭐
+### Method 1: Install from PyPI (Recommended) ⭐
 
-Install as a global CLI tool—no virtual environment needed!
+Install directly from PyPI as a global CLI tool—no virtual environment needed!
+
+```bash
+# Install as a global tool with uv
+uv tool install gittyup
+
+# That's it! Use from anywhere without activating venv
+gittyup --version
+```
+
+**Benefits:** ✅ No venv activation • ✅ Available system-wide • ✅ Isolated environment • ✅ Easy updates
+
+**Alternative with pip:**
+```bash
+pipx install gittyup
+# or
+pip install gittyup
+```
+
+### Method 2: Install from Source
+
+For development or contributing to the project:
 
 ```bash
 # Clone and navigate to the project
 git clone https://github.com/mikeckennedy/gittyup
 cd gittyup
 
-# Install as a global tool with uv
-uv tool install .
+# Install in editable mode with uv
+uv tool install --editable .
 
-# That's it! Use from anywhere without activating venv
-gittyup --version
-```
-
-**Benefits:** ✅ No venv activation • ✅ Available system-wide • ✅ Isolated environment
-
-### Method 2: Virtual Environment Installation
-
-Traditional installation in a virtual environment:
-
-```bash
-# Navigate to the project directory
-cd gittyup
-
-# Create and activate virtual environment
+# Or install in a virtual environment
 python -m venv venv
 source venv/bin/activate  # macOS/Linux
 # or: venv\Scripts\activate  # Windows
-
-# Install Gitty Up
 uv pip install -e .
 ```
-
-**Note:** With this method, activate the venv before using `gittyup`.
 
 ---
 

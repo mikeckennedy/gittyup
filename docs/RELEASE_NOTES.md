@@ -103,11 +103,10 @@ None—fully backward compatible with v1.0.0.
 
 ### 📦 Installation
 
-Same as before:
+**Now available on PyPI!** Install with a single command:
+
 ```bash
-git clone https://github.com/mikeckennedy/gittyup
-cd gittyup
-uv tool install .
+uv tool install gittyup
 ```
 
 Or upgrade existing installation:
@@ -240,12 +239,12 @@ gittyup --max-depth 3 --exclude cache
 
 ## 📦 Installation
 
+**Now available on PyPI at [https://pypi.org/project/gittyup/](https://pypi.org/project/gittyup/)!**
+
 ### Recommended: Global Tool Installation
 ```bash
 # Install as a global CLI tool (no venv needed!)
-git clone https://github.com/mikeckennedy/gittyup
-cd gittyup
-uv tool install .
+uv tool install gittyup
 
 # Use from anywhere
 gittyup --version
@@ -259,6 +258,10 @@ gittyup --version
 
 ### Alternative: Virtual Environment
 ```bash
+# Install from PyPI
+pip install gittyup
+
+# Or install from source
 git clone https://github.com/mikeckennedy/gittyup
 cd gittyup
 python -m venv venv

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Updated documentation to reflect PyPI availability at https://pypi.org/project/gittyup/
+- Changed primary installation method to `uv tool install gittyup` (from PyPI)
+- Updated README.md, INSTALLATION.md, and RELEASE_NOTES.md with PyPI installation instructions
+- Added PyPI badges to README.md
+
 ---
 
 ## [1.0.0] - 2025-10-17

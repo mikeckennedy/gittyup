@@ -2,6 +2,10 @@
 
 This guide provides step-by-step instructions for installing and verifying Gitty Up on your system.
 
+> **📦 Now Available on PyPI!**  
+> Gitty Up is now published on PyPI at [https://pypi.org/project/gittyup/](https://pypi.org/project/gittyup/)  
+> Install with a single command: `uv tool install gittyup`
+
 ---
 
 ## 📋 Prerequisites
@@ -29,17 +33,13 @@ uv --version
 
 ## 💿 Installation Methods
 
-### Method 1: Global Tool Installation with uv (Recommended)
+### Method 1: Install from PyPI (Recommended) ⭐
 
-Install Gitty Up as a global CLI tool using `uv tool install`. This makes the `gittyup` command available system-wide without needing to activate a virtual environment.
+Install Gitty Up directly from PyPI as a global CLI tool. This makes the `gittyup` command available system-wide without needing to activate a virtual environment.
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/mikeckennedy/gittyup
-cd gittyup
-
-# 2. Install as a global tool
-uv tool install .
+# Install as a global tool with uv
+uv tool install gittyup
 
 # That's it! The gittyup command is now available globally
 gittyup --version
@@ -50,17 +50,21 @@ gittyup --version
 - ✅ Command available from anywhere
 - ✅ Isolated environment managed by uv
 - ✅ Perfect for CLI tools
+- ✅ Easy updates
 
-**For Development (editable mode):**
+**Alternative with pipx or pip:**
 ```bash
-# Install in editable mode to see changes immediately
-uv tool install --editable .
+# Using pipx (recommended for Python CLI tools)
+pipx install gittyup
+
+# Or using pip
+pip install gittyup
 ```
 
 **Managing the tool:**
 ```bash
-# Update after changes
-uv tool install --reinstall .
+# Update to latest version
+uv tool upgrade gittyup
 
 # Uninstall
 uv tool uninstall gittyup
@@ -69,35 +73,25 @@ uv tool uninstall gittyup
 uv tool list
 ```
 
-### Method 2: Install from Source with Virtual Environment
+### Method 2: Install from Source (For Development)
 
-Traditional installation method using a virtual environment.
+For development or contributing to the project:
 
 ```bash
 # 1. Clone the repository
 git clone https://github.com/mikeckennedy/gittyup
 cd gittyup
 
-# 2. Create and activate a virtual environment
+# 2. Install in editable mode with uv
+uv tool install --editable .
+
+# Or install in a virtual environment
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# 3. Install in editable mode
 uv pip install -e .
-# Or with pip: pip install -e .
 ```
 
-**Note:** With this method, you need to activate the venv each time before using `gittyup`.
-
-### Method 2: Direct Installation (Future PyPI)
-
-*Coming soon - once published to PyPI:*
-
-```bash
-# Install from PyPI (not yet available)
-uv pip install gittyup
-# Or: pip install gittyup
-```
+**Note:** Editable mode is useful for development—changes to the source code are immediately reflected without reinstalling.
 
 ---
 
@@ -373,6 +367,21 @@ pytest tests/test_cli.py -v
 
 To update to the latest version:
 
+### If Installed from PyPI
+
+```bash
+# Update with uv
+uv tool upgrade gittyup
+
+# Or with pipx
+pipx upgrade gittyup
+
+# Verify new version
+gittyup --version
+```
+
+### If Installed from Source
+
 ```bash
 # Navigate to the gittyup directory
 cd /path/to/gittyup
@@ -381,7 +390,8 @@ cd /path/to/gittyup
 git pull
 
 # Reinstall (in case dependencies changed)
-uv pip install -e .
+uv tool install --force .
+# Or if using venv: uv pip install -e .
 
 # Verify new version
 gittyup --version
@@ -393,6 +403,21 @@ gittyup --version
 
 To completely remove Gitty Up:
 
+### If Installed from PyPI
+
+```bash
+# Uninstall with uv
+uv tool uninstall gittyup
+
+# Or with pipx
+pipx uninstall gittyup
+
+# Or with pip
+pip uninstall gittyup
+```
+
+### If Installed from Source
+
 ```bash
 # Uninstall the package
 uv pip uninstall gittyup
@@ -400,7 +425,7 @@ uv pip uninstall gittyup
 # Optionally, remove the source directory
 rm -rf /path/to/gittyup
 
-# Deactivate and remove virtual environment
+# If using venv: Deactivate and remove virtual environment
 deactivate
 rm -rf venv
 ```

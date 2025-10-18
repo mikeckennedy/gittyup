@@ -2,6 +2,10 @@
 
 This guide covers everything you need to know about developing and contributing to Gitty Up.
 
+> **📦 For End Users:**  
+> If you just want to use Gitty Up (not develop it), install from PyPI: `uv tool install gittyup`  
+> See the [Installation Guide](../INSTALLATION.md) for details.
+
 ---
 
 ## 🚀 Development Setup
@@ -10,7 +14,7 @@ This guide covers everything you need to know about developing and contributing 
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/mikeckennedy/gittyup
 cd gittyup
 
 # Create and activate virtual environment
@@ -283,6 +287,20 @@ We follow [Semantic Versioning](https://semver.org/):
 5. Commit changes: `git commit -m "Release vX.Y.Z"`
 6. Tag release: `git tag -a vX.Y.Z -m "Version X.Y.Z"`
 7. Push changes and tags: `git push && git push --tags`
+8. Build and publish to PyPI:
+   ```bash
+   # Build distribution packages
+   uv build
+   
+   # Publish to PyPI (requires credentials)
+   uv publish
+   ```
+
+### PyPI Publishing
+
+Gitty Up is available on PyPI at [https://pypi.org/project/gittyup/](https://pypi.org/project/gittyup/).
+
+Publishing requires PyPI credentials and is typically done by maintainers after a release is tagged.
 
 ---
 
