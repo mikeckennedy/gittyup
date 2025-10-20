@@ -12,7 +12,7 @@ import click
 
 from gittyup import __version__, git_operations, output, scanner
 from gittyup.logger import LogManager
-from gittyup.models import OperationLog, RepoLogEntry, RepoStatus
+from gittyup.models import OperationLog, RepoInfo, RepoLogEntry, RepoStatus, ScanResult
 
 
 def handle_explain_command(directory: Path) -> None:
@@ -45,12 +45,12 @@ def handle_explain_command(directory: Path) -> None:
 
 
 async def async_update_repos_in_batches(
-    repos: list[scanner.RepoInfo],
+    repos: list[RepoInfo],
     batch_size: int,
     quiet: bool,
     verbose: bool,
     dry_run: bool,
-    result: scanner.ScanResult,
+    result: ScanResult,
 ) -> list[RepoLogEntry]:
     """
     Update repositories in batches concurrently.
@@ -161,7 +161,7 @@ async def async_update_repos_in_batches(
 
 def save_operation_log(
     directory: Path,
-    result: scanner.ScanResult,
+    result: ScanResult,
     start_time: float,
     dry_run: bool,
     max_depth: Optional[int],
@@ -368,7 +368,7 @@ def main(
         print()
 
     # Sort repositories alphabetically by name
-    sorted_repos: list[scanner.RepoInfo] = sorted(result.repositories, key=lambda r: r.name.lower())
+    sorted_repos: list[RepoInfo] = sorted(result.repositories, key=lambda r: r.name.lower())
 
     # Update repositories using async batch processing
     repo_logs: list[RepoLogEntry] = asyncio.run(
