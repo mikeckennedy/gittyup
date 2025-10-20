@@ -61,3 +61,4 @@ dmypy.json
 AGENTS.md
 docs/BRAND_UPDATES_SUMMARY.md
 docs/brand-review-logging-feature.md
+.envrc
