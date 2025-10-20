@@ -56,9 +56,6 @@ gittyup --version
 ```bash
 # Using pipx (recommended for Python CLI tools)
 pipx install gittyup
-
-# Or using pip
-pip install gittyup
 ```
 
 **Managing the tool:**

@@ -92,12 +92,6 @@ gittyup --version
 
 **Benefits:** ✅ No venv activation • ✅ Available system-wide • ✅ Isolated environment • ✅ Easy updates
 
-**Alternative with pip:**
-```bash
-pipx install gittyup
-# or
-pip install gittyup
-```
 
 ### Method 2: Install from Source
 
@@ -110,12 +104,6 @@ cd gittyup
 
 # Install in editable mode with uv
 uv tool install --editable .
-
-# Or install in a virtual environment
-python -m venv venv
-source venv/bin/activate  # macOS/Linux
-# or: venv\Scripts\activate  # Windows
-uv pip install -e .
 ```
 
 ---
