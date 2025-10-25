@@ -1,0 +1,5 @@
+# Install base requirements.
+-r requirements.txt
+
+# Install development requirements.
+-r requirements-development.txt
