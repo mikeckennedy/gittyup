@@ -129,9 +129,10 @@ def get_repo_status(repo_path: Path, timeout: int = 10) -> dict[str, bool]:
         remote_result = _run_git_command(["git", "remote"], cwd=repo_path, timeout=timeout)
         status["has_remote"] = bool(remote_result.stdout.strip())
 
-        # Check if working directory is clean
-        status_result = _run_git_command(["git", "status", "--porcelain"], cwd=repo_path, timeout=timeout)
-        status["is_clean"] = not bool(status_result.stdout.strip())
+        # Check if working directory is clean (filtering out always-ignored files)
+        uncommitted_files = get_uncommitted_files(repo_path, timeout=timeout)
+        relevant_files = [f for f in uncommitted_files if not should_ignore_file(f.path)]
+        status["is_clean"] = len(relevant_files) == 0
 
         # Check if HEAD is detached
         branch_result = _run_git_command(["git", "symbolic-ref", "-q", "HEAD"], cwd=repo_path, timeout=timeout)
@@ -259,6 +260,35 @@ def get_uncommitted_files(repo_path: Path, timeout: int = 10) -> list[Uncommitte
         return []
 
 
+# Files and directories that should always be ignored when checking for uncommitted changes
+# These are common working files that don't indicate actual repository changes
+ALWAYS_IGNORED_FILES = {
+    ".DS_Store",  # macOS
+    "Thumbs.db",  # Windows
+    "__pycache__",  # Python
+}
+
+
+def should_ignore_file(file_path: str) -> bool:
+    """
+    Check if a file should be ignored when considering uncommitted changes.
+
+    Args:
+        file_path: Path to the file (can be relative)
+
+    Returns:
+        True if the file should always be ignored
+    """
+    # Check if the file name matches any ignored files
+    file_name = Path(file_path).name
+    if file_name in ALWAYS_IGNORED_FILES:
+        return True
+
+    # Check if any component of the path matches ignored directories
+    path_parts = Path(file_path).parts
+    return any(part in ALWAYS_IGNORED_FILES for part in path_parts)
+
+
 def has_only_untracked_files(uncommitted_files: list[UncommittedFile]) -> bool:
     """
     Check if the uncommitted files are only untracked files.
@@ -272,8 +302,15 @@ def has_only_untracked_files(uncommitted_files: list[UncommittedFile]) -> bool:
     if not uncommitted_files:
         return True  # No uncommitted files at all
 
-    # Check if all files have status "??" (untracked)
-    return all(file.status == "??" or file.status == "?" for file in uncommitted_files)
+    # Filter out files that should always be ignored
+    relevant_files = [f for f in uncommitted_files if not should_ignore_file(f.path)]
+
+    # If no relevant files remain after filtering, treat as clean
+    if not relevant_files:
+        return True
+
+    # Check if all remaining files have status "??" (untracked)
+    return all(file.status == "??" or file.status == "?" for file in relevant_files)
 
 
 def check_for_pull_conflicts(repo_path: Path, timeout: int = 10) -> tuple[bool, Optional[str]]:
@@ -984,11 +1021,10 @@ async def async_get_repo_status(repo_path: Path, timeout: int = 10) -> dict[str,
         returncode, stdout, _ = await _async_run_git_command(["git", "remote"], cwd=repo_path, timeout=timeout)
         status["has_remote"] = bool(stdout.strip())
 
-        # Check if working directory is clean
-        returncode, stdout, _ = await _async_run_git_command(
-            ["git", "status", "--porcelain"], cwd=repo_path, timeout=timeout
-        )
-        status["is_clean"] = not bool(stdout.strip())
+        # Check if working directory is clean (filtering out always-ignored files)
+        uncommitted_files = await async_get_uncommitted_files(repo_path, timeout=timeout)
+        relevant_files = [f for f in uncommitted_files if not should_ignore_file(f.path)]
+        status["is_clean"] = len(relevant_files) == 0
 
         # Check if HEAD is detached
         returncode, _, _ = await _async_run_git_command(

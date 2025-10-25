@@ -401,6 +401,18 @@ Want to exclude more? Use `--exclude`:
 gittyup --exclude temp --exclude backup --exclude old-stuff
 ```
 
+### 🧹 Always-Ignored Files
+
+GittyUp knows the difference between real changes and desktop clutter. These common system and cache files are automatically ignored when checking for uncommitted changes:
+
+- **`.DS_Store`** - macOS metadata that clutters every directory
+- **`Thumbs.db`** - Windows thumbnail caches you never asked for  
+- **`__pycache__`** - Python bytecode that regenerates anyway
+
+**Why this matters:** Repositories with only these files are treated as clean and can be updated automatically. No more "uncommitted changes" blocks just because your OS left metadata files lying around.
+
+**📚 Learn more:** See [Always-Ignored Files Documentation](docs/always-ignored-files.md) for detailed examples and implementation details.
+
 ---
 
 ## ❓ FAQ

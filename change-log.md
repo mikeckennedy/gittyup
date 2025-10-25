@@ -13,10 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fetches from origin and checks for potential conflicts before pulling
   - Distinguishes between untracked files (safe with checks) and modified files (still skipped)
   - Only proceeds with pull if no conflicts detected between untracked files and incoming changes
+- Always-ignored files list for common working files that don't block updates (addresses GitHub issue #2)
+  - `.DS_Store` (macOS file system metadata)
+  - `Thumbs.db` (Windows thumbnail cache)
+  - `__pycache__` (Python bytecode cache directories)
+  - These files are automatically filtered when determining if a repository has uncommitted changes
+  - Repositories with only these files are treated as clean and can be updated
 
 ### Changed
 - Improved uncommitted files detection to distinguish between untracked vs modified/staged files
 - Enhanced skip reason logging to provide more specific information about why repos were skipped
+- Modified `get_repo_status()` and `async_get_repo_status()` to filter out always-ignored files
+- Updated `has_only_untracked_files()` to automatically exclude always-ignored files from consideration
 
 ---
 
