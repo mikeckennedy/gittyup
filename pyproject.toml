@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gittyup"
-version = "1.0.2"
+version = "1.1.0"
 description = "Automatically discover and update all git repositories in a directory tree"
 readme = "readme.md"
 requires-python = ">=3.13"

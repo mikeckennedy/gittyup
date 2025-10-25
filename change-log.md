@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.1.0] - 2025-10-25
+
 ### Added
 - `--ignore-untracked` option to allow updates even when untracked files are present (addresses GitHub issue #2)
   - Performs safety checks to ensure untracked files won't be overwritten by pull
