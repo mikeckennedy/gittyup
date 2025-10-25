@@ -417,7 +417,10 @@ def main(
             error_count = sum(1 for r in result.repositories if r.status == RepoStatus.ERROR)
 
             if updated_count > 0 or skipped_count > 0 or error_count > 0:
-                output.print_info("For detailed information about this run, use: gittyup --explain")
+                # Build the explain command with the directory path if it's not the current directory
+                cwd = Path.cwd()
+                explain_cmd = "gittyup --explain" if directory.resolve() == cwd else f"gittyup {directory} --explain"
+                output.print_info(f"For detailed information about this run, use: {explain_cmd}")
                 print()
 
     # Exit with error code if there were errors

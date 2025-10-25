@@ -653,3 +653,93 @@ class TestCLILogging:
         # Should still succeed despite logging failure
         assert result.exit_code == 0
         assert "Failed to save operation log" in result.output
+
+    @patch("gittyup.cli.LogManager")
+    @patch("gittyup.cli.git_operations.check_git_installed")
+    @patch("gittyup.cli.git_operations.async_update_repository_with_log")
+    def test_explain_recommendation_includes_directory(
+        self, mock_update: MagicMock, mock_check_git: MagicMock, mock_log_manager_class: MagicMock, tmp_path: Path
+    ) -> None:
+        """Test that the explain recommendation includes the directory path when scanning a non-current directory."""
+        mock_check_git.return_value = True
+
+        # Create a git repo
+        repo = tmp_path / "repo1"
+        repo.mkdir()
+        (repo / ".git").mkdir()
+
+        # Mock update to return a repo with an update (so explain is recommended)
+        async def update_side_effect(
+            repo_info: RepoInfo,
+            skip_dirty: bool = True,
+            ignore_untracked: bool = False,
+            timeout: int = 60,
+        ) -> tuple[RepoInfo, RepoLogEntry]:
+            repo_info.status = RepoStatus.UPDATED
+            repo_info.message = "Updated successfully"
+            repo_log = RepoLogEntry(
+                path=str(repo_info.path), name=repo_info.name, status="updated", duration_ms=100, commits_pulled=1
+            )
+            return repo_info, repo_log
+
+        mock_update.side_effect = update_side_effect
+
+        # Setup log manager mock
+        mock_log_manager = MagicMock()
+        mock_log_manager_class.return_value.__enter__.return_value = mock_log_manager
+
+        runner = CliRunner()
+        result = runner.invoke(main, [str(tmp_path)])
+
+        assert result.exit_code == 0
+        # The recommendation should include the directory path
+        assert f"gittyup {tmp_path} --explain" in result.output
+
+    @patch("gittyup.cli.LogManager")
+    @patch("gittyup.cli.git_operations.check_git_installed")
+    @patch("gittyup.cli.git_operations.async_update_repository_with_log")
+    def test_explain_recommendation_without_directory_for_cwd(
+        self, mock_update: MagicMock, mock_check_git: MagicMock, mock_log_manager_class: MagicMock, tmp_path: Path
+    ) -> None:
+        """Test that the explain recommendation omits directory path when scanning current directory."""
+        mock_check_git.return_value = True
+
+        # Create a git repo in the isolated filesystem
+        repo_dir = tmp_path / "repo1"
+        repo_dir.mkdir()
+        (repo_dir / ".git").mkdir()
+
+        # Mock update to return a repo with an update (so explain is recommended)
+        async def update_side_effect(
+            repo_info: RepoInfo,
+            skip_dirty: bool = True,
+            ignore_untracked: bool = False,
+            timeout: int = 60,
+        ) -> tuple[RepoInfo, RepoLogEntry]:
+            repo_info.status = RepoStatus.UPDATED
+            repo_info.message = "Updated successfully"
+            repo_log = RepoLogEntry(
+                path=str(repo_info.path), name=repo_info.name, status="updated", duration_ms=100, commits_pulled=1
+            )
+            return repo_info, repo_log
+
+        mock_update.side_effect = update_side_effect
+
+        # Setup log manager mock
+        mock_log_manager = MagicMock()
+        mock_log_manager_class.return_value.__enter__.return_value = mock_log_manager
+
+        runner = CliRunner()
+        # Run from the temp directory itself (which is CWD in isolated filesystem)
+        with runner.isolated_filesystem(temp_dir=tmp_path.parent):
+            # Change to tmp_path directory and run with "." (current directory)
+            import os
+
+            os.chdir(tmp_path)
+            result = runner.invoke(main, ["."])
+
+        assert result.exit_code == 0
+        # The recommendation should NOT include a directory path (just "gittyup --explain")
+        assert "gittyup --explain" in result.output
+        # Make sure it's not including the directory
+        assert "gittyup . --explain" not in result.output

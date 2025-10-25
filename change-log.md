@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Modified `get_repo_status()` and `async_get_repo_status()` to filter out always-ignored files
 - Updated `has_only_untracked_files()` to automatically exclude always-ignored files from consideration
 
+### Fixed
+- Fixed `--explain` recommendation to include directory path when scanning non-current directories
+  - Now correctly shows `gittyup /path/to/dir --explain` instead of just `gittyup --explain`
+  - Prevents confusion when users scan a different directory than their current working directory
+
 ---
 
 ## [1.0.1] - 2025-10-25
