@@ -5,7 +5,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from gittyup.git_operations import check_for_pull_conflicts, has_only_untracked_files
+from gittyup.git_operations import (
+    async_check_for_pull_conflicts,
+    check_for_pull_conflicts,
+    has_only_untracked_files,
+)
 from gittyup.models import UncommittedFile
 
 
@@ -277,9 +281,7 @@ class TestIgnoreUntrackedIntegration:
             full_output="Pull successful",
         )
 
-        repo_info, log_entry = await async_update_repository_with_log(
-            repo, skip_dirty=True, ignore_untracked=True
-        )
+        repo_info, log_entry = await async_update_repository_with_log(repo, skip_dirty=True, ignore_untracked=True)
 
         # Should have pulled successfully
         assert repo_info.status.value == "updated"
@@ -317,9 +319,7 @@ class TestIgnoreUntrackedIntegration:
         ]
         mock_check_conflicts.return_value = (False, "Untracked files would be overwritten")
 
-        repo_info, log_entry = await async_update_repository_with_log(
-            repo, skip_dirty=True, ignore_untracked=True
-        )
+        repo_info, log_entry = await async_update_repository_with_log(repo, skip_dirty=True, ignore_untracked=True)
 
         # Should be skipped due to conflict
         assert repo_info.status.value == "skipped"
@@ -355,9 +355,7 @@ class TestIgnoreUntrackedIntegration:
             UncommittedFile("untracked.txt", "??", "Untracked"),
         ]
 
-        repo_info, log_entry = await async_update_repository_with_log(
-            repo, skip_dirty=True, ignore_untracked=False
-        )
+        repo_info, log_entry = await async_update_repository_with_log(repo, skip_dirty=True, ignore_untracked=False)
 
         # Should be skipped (default behavior)
         assert repo_info.status.value == "skipped"
@@ -394,9 +392,7 @@ class TestIgnoreUntrackedIntegration:
             UncommittedFile("untracked.txt", "??", "Untracked"),
         ]
 
-        repo_info, log_entry = await async_update_repository_with_log(
-            repo, skip_dirty=True, ignore_untracked=True
-        )
+        repo_info, log_entry = await async_update_repository_with_log(repo, skip_dirty=True, ignore_untracked=True)
 
         # Should be skipped because there are non-untracked changes
         assert repo_info.status.value == "skipped"
@@ -404,3 +400,367 @@ class TestIgnoreUntrackedIntegration:
         assert repo_info.message is not None
         assert "uncommitted changes" in repo_info.message.lower()
 
+
+class TestAsyncCheckForPullConflicts:
+    """Tests for async_check_for_pull_conflicts function (the ASYNC version)."""
+
+    @pytest.mark.asyncio
+    @patch("gittyup.git_operations._async_run_git_command")
+    @patch("gittyup.git_operations.async_get_current_branch")
+    @patch("gittyup.git_operations.async_get_uncommitted_files")
+    async def test_async_no_conflicts(
+        self,
+        mock_get_uncommitted: MagicMock,
+        mock_get_branch: MagicMock,
+        mock_run_git: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Test async version when there are no conflicts."""
+        mock_get_branch.return_value = "main"
+        mock_get_uncommitted.return_value = [
+            UncommittedFile("untracked.txt", "??", "Untracked"),
+        ]
+
+        async def git_command_side_effect(*args, **kwargs):
+            cmd = args[0]
+
+            if cmd[1] == "fetch":
+                return 0, "", ""
+            elif cmd[1] == "rev-parse":
+                return 0, "origin/main\n", ""
+            elif cmd[1] == "diff":
+                # Files that would be changed by pull (different from untracked)
+                return 0, "M\tdifferent_file.py\n", ""
+
+            return 0, "", ""
+
+        mock_run_git.side_effect = git_command_side_effect
+
+        is_safe, error_msg = await async_check_for_pull_conflicts(tmp_path)
+
+        assert is_safe is True
+        assert error_msg is None
+
+    @pytest.mark.asyncio
+    @patch("gittyup.git_operations._async_run_git_command")
+    @patch("gittyup.git_operations.async_get_current_branch")
+    @patch("gittyup.git_operations.async_get_uncommitted_files")
+    async def test_async_with_conflicts(
+        self,
+        mock_get_uncommitted: MagicMock,
+        mock_get_branch: MagicMock,
+        mock_run_git: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Test async version when untracked files would be overwritten."""
+        mock_get_branch.return_value = "main"
+        mock_get_uncommitted.return_value = [
+            UncommittedFile("conflicting.txt", "??", "Untracked"),
+            UncommittedFile("safe.log", "??", "Untracked"),
+        ]
+
+        async def git_command_side_effect(*args, **kwargs):
+            cmd = args[0]
+
+            if cmd[1] == "fetch":
+                return 0, "", ""
+            elif cmd[1] == "rev-parse":
+                return 0, "origin/main\n", ""
+            elif cmd[1] == "diff":
+                # Pull would change a file that exists as untracked locally
+                return 0, "M\tconflicting.txt\nA\tother_file.py\n", ""
+
+            return 0, "", ""
+
+        mock_run_git.side_effect = git_command_side_effect
+
+        is_safe, error_msg = await async_check_for_pull_conflicts(tmp_path)
+
+        assert is_safe is False
+        assert error_msg is not None
+        assert "conflicting.txt" in error_msg
+
+    @pytest.mark.asyncio
+    @patch("gittyup.git_operations._async_run_git_command")
+    @patch("gittyup.git_operations.async_get_current_branch")
+    async def test_async_fetch_fails(
+        self,
+        mock_get_branch: MagicMock,
+        mock_run_git: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Test async version when git fetch fails."""
+        mock_get_branch.return_value = "main"
+
+        async def git_command_side_effect(*args, **kwargs):
+            cmd = args[0]
+
+            if cmd[1] == "fetch":
+                return 1, "", "fatal: unable to access remote"
+            return 0, "", ""
+
+        mock_run_git.side_effect = git_command_side_effect
+
+        is_safe, error_msg = await async_check_for_pull_conflicts(tmp_path)
+
+        assert is_safe is False
+        assert error_msg is not None
+        assert "fetch" in error_msg.lower()
+
+    @pytest.mark.asyncio
+    @patch("gittyup.git_operations._async_run_git_command")
+    @patch("gittyup.git_operations.async_get_current_branch")
+    async def test_async_no_branch(
+        self,
+        mock_get_branch: MagicMock,
+        mock_run_git: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Test async version when current branch cannot be determined."""
+        mock_get_branch.return_value = None  # Can't determine branch
+
+        async def git_command_side_effect(*args, **kwargs):
+            cmd = args[0]
+            if cmd[1] == "fetch":
+                return 0, "", ""
+            return 0, "", ""
+
+        mock_run_git.side_effect = git_command_side_effect
+
+        is_safe, error_msg = await async_check_for_pull_conflicts(tmp_path)
+
+        assert is_safe is False
+        assert error_msg is not None
+        assert "branch" in error_msg.lower()
+
+    @pytest.mark.asyncio
+    @patch("gittyup.git_operations._async_run_git_command")
+    @patch("gittyup.git_operations.async_get_current_branch")
+    async def test_async_no_upstream(
+        self,
+        mock_get_branch: MagicMock,
+        mock_run_git: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Test async version when there's no upstream branch."""
+        mock_get_branch.return_value = "main"
+
+        async def git_command_side_effect(*args, **kwargs):
+            cmd = args[0]
+
+            if cmd[1] == "fetch":
+                return 0, "", ""
+            elif cmd[1] == "rev-parse" and "@{upstream}" in cmd:
+                # No upstream configured
+                return 1, "", "fatal: no upstream configured"
+
+            return 0, "", ""
+
+        mock_run_git.side_effect = git_command_side_effect
+
+        is_safe, error_msg = await async_check_for_pull_conflicts(tmp_path)
+
+        assert is_safe is False
+        assert error_msg is not None
+        assert "upstream" in error_msg.lower()
+
+    @pytest.mark.asyncio
+    @patch("gittyup.git_operations._async_run_git_command")
+    @patch("gittyup.git_operations.async_get_current_branch")
+    @patch("gittyup.git_operations.async_get_uncommitted_files")
+    async def test_async_no_changes_to_pull(
+        self,
+        mock_get_uncommitted: MagicMock,
+        mock_get_branch: MagicMock,
+        mock_run_git: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Test async version when there are no changes to pull (already up to date)."""
+        mock_get_branch.return_value = "main"
+        mock_get_uncommitted.return_value = [
+            UncommittedFile("untracked.txt", "??", "Untracked"),
+        ]
+
+        async def git_command_side_effect(*args, **kwargs):
+            cmd = args[0]
+
+            if cmd[1] == "fetch":
+                return 0, "", ""
+            elif cmd[1] == "rev-parse":
+                return 0, "origin/main\n", ""
+            elif cmd[1] == "diff":
+                # No differences - already up to date
+                return 0, "", ""
+
+            return 0, "", ""
+
+        mock_run_git.side_effect = git_command_side_effect
+
+        is_safe, error_msg = await async_check_for_pull_conflicts(tmp_path)
+
+        assert is_safe is True
+        assert error_msg is None
+
+    @pytest.mark.asyncio
+    @patch("gittyup.git_operations._async_run_git_command")
+    @patch("gittyup.git_operations.async_get_current_branch")
+    async def test_async_diff_fails(
+        self,
+        mock_get_branch: MagicMock,
+        mock_run_git: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Test async version when git diff fails."""
+        mock_get_branch.return_value = "main"
+
+        async def git_command_side_effect(*args, **kwargs):
+            cmd = args[0]
+
+            if cmd[1] == "fetch":
+                return 0, "", ""
+            elif cmd[1] == "rev-parse":
+                return 0, "origin/main\n", ""
+            elif cmd[1] == "diff":
+                return 1, "", "fatal: diff error"
+
+            return 0, "", ""
+
+        mock_run_git.side_effect = git_command_side_effect
+
+        is_safe, error_msg = await async_check_for_pull_conflicts(tmp_path)
+
+        assert is_safe is False
+        assert error_msg is not None
+        assert "diff" in error_msg.lower() or "check differences" in error_msg.lower()
+
+    @pytest.mark.asyncio
+    @patch("gittyup.git_operations._async_run_git_command")
+    @patch("gittyup.git_operations.async_get_current_branch")
+    @patch("gittyup.git_operations.async_get_uncommitted_files")
+    async def test_async_with_rename_conflicts(
+        self,
+        mock_get_uncommitted: MagicMock,
+        mock_get_branch: MagicMock,
+        mock_run_git: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Test async version when renamed files conflict with untracked."""
+        mock_get_branch.return_value = "main"
+        mock_get_uncommitted.return_value = [
+            UncommittedFile("new_name.txt", "??", "Untracked"),
+        ]
+
+        async def git_command_side_effect(*args, **kwargs):
+            cmd = args[0]
+
+            if cmd[1] == "fetch":
+                return 0, "", ""
+            elif cmd[1] == "rev-parse":
+                return 0, "origin/main\n", ""
+            elif cmd[1] == "diff":
+                # Pull includes a rename that would overwrite untracked file
+                return 0, "R100\told_name.txt\tnew_name.txt\n", ""
+
+            return 0, "", ""
+
+        mock_run_git.side_effect = git_command_side_effect
+
+        is_safe, error_msg = await async_check_for_pull_conflicts(tmp_path)
+
+        assert is_safe is False
+        assert error_msg is not None
+        assert "new_name.txt" in error_msg
+
+    @pytest.mark.asyncio
+    @patch("gittyup.git_operations._async_run_git_command")
+    @patch("gittyup.git_operations.async_get_current_branch")
+    @patch("gittyup.git_operations.async_get_uncommitted_files")
+    async def test_async_with_multiple_conflicts(
+        self,
+        mock_get_uncommitted: MagicMock,
+        mock_get_branch: MagicMock,
+        mock_run_git: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Test async version with many conflicting files (tests truncation)."""
+        mock_get_branch.return_value = "main"
+        mock_get_uncommitted.return_value = [UncommittedFile(f"file{i}.txt", "??", "Untracked") for i in range(5)]
+
+        async def git_command_side_effect(*args, **kwargs):
+            cmd = args[0]
+
+            if cmd[1] == "fetch":
+                return 0, "", ""
+            elif cmd[1] == "rev-parse":
+                return 0, "origin/main\n", ""
+            elif cmd[1] == "diff":
+                # All 5 files would be changed by pull
+                return 0, "\n".join([f"M\tfile{i}.txt" for i in range(5)]) + "\n", ""
+
+            return 0, "", ""
+
+        mock_run_git.side_effect = git_command_side_effect
+
+        is_safe, error_msg = await async_check_for_pull_conflicts(tmp_path)
+
+        assert is_safe is False
+        assert error_msg is not None
+        # Should show first 3 files and indicate there are more
+        assert "file0.txt" in error_msg or "file1.txt" in error_msg
+        assert "total" in error_msg or "..." in error_msg
+
+    @pytest.mark.asyncio
+    @patch("gittyup.git_operations._async_run_git_command")
+    @patch("gittyup.git_operations.async_get_current_branch")
+    async def test_async_timeout_error(
+        self,
+        mock_get_branch: MagicMock,
+        mock_run_git: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Test async version when operation times out."""
+        mock_get_branch.return_value = "main"
+
+        async def git_command_side_effect(*args, **kwargs):
+            cmd = args[0]
+
+            if cmd[1] == "fetch":
+                raise TimeoutError("Operation timed out")
+
+            return 0, "", ""
+
+        mock_run_git.side_effect = git_command_side_effect
+
+        is_safe, error_msg = await async_check_for_pull_conflicts(tmp_path)
+
+        assert is_safe is False
+        assert error_msg is not None
+        assert "timeout" in error_msg.lower()
+
+    @pytest.mark.asyncio
+    @patch("gittyup.git_operations._async_run_git_command")
+    @patch("gittyup.git_operations.async_get_current_branch")
+    async def test_async_unexpected_exception(
+        self,
+        mock_get_branch: MagicMock,
+        mock_run_git: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Test async version when unexpected exception occurs."""
+        mock_get_branch.return_value = "main"
+
+        async def git_command_side_effect(*args, **kwargs):
+            cmd = args[0]
+
+            if cmd[1] == "fetch":
+                raise RuntimeError("Unexpected error")
+
+            return 0, "", ""
+
+        mock_run_git.side_effect = git_command_side_effect
+
+        is_safe, error_msg = await async_check_for_pull_conflicts(tmp_path)
+
+        assert is_safe is False
+        assert error_msg is not None
+        assert "error" in error_msg.lower()
