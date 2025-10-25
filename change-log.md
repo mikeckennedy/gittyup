@@ -7,11 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.0.1] - 2025-10-25
+
+### Fixed
+- Fixed AttributeError in CLI by importing RepoInfo and ScanResult from models module instead of scanner module (PR #4)
+
 ### Changed
 - Updated documentation to reflect PyPI availability at https://pypi.org/project/gittyup/
 - Changed primary installation method to `uv tool install gittyup` (from PyPI)
 - Updated README.md, INSTALLATION.md, and RELEASE_NOTES.md with PyPI installation instructions
 - Added PyPI badges to README.md
+- Added pytest-asyncio to development dependencies for async test support
+- Added asyncio marker to pytest.ini configuration
+- Recompiled development requirements with updated dependencies
+- Updated version management to use importlib.metadata for dynamic version resolution
 
 ---
 
