@@ -322,21 +322,15 @@ def print_explain(operation_log: OperationLog) -> None:
 
     # Separate repositories by status and sort alphabetically within each group
     unchanged_repos = sorted(
-        [r for r in operation_log.repositories if r.status == "up_to_date"],
-        key=lambda r: r.name.lower()
+        [r for r in operation_log.repositories if r.status == "up_to_date"], key=lambda r: r.name.lower()
     )
     updated_repos = sorted(
-        [r for r in operation_log.repositories if r.status == "updated"],
-        key=lambda r: r.name.lower()
+        [r for r in operation_log.repositories if r.status == "updated"], key=lambda r: r.name.lower()
     )
     skipped_repos = sorted(
-        [r for r in operation_log.repositories if r.status == "skipped"],
-        key=lambda r: r.name.lower()
+        [r for r in operation_log.repositories if r.status == "skipped"], key=lambda r: r.name.lower()
     )
-    error_repos = sorted(
-        [r for r in operation_log.repositories if r.status == "error"],
-        key=lambda r: r.name.lower()
-    )
+    error_repos = sorted([r for r in operation_log.repositories if r.status == "error"], key=lambda r: r.name.lower())
 
     # Show unchanged repos compactly at the top
     if unchanged_repos:

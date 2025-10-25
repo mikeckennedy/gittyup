@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `--ignore-untracked` option to allow updates even when untracked files are present (addresses GitHub issue #2)
+  - Performs safety checks to ensure untracked files won't be overwritten by pull
+  - Fetches from origin and checks for potential conflicts before pulling
+  - Distinguishes between untracked files (safe with checks) and modified files (still skipped)
+  - Only proceeds with pull if no conflicts detected between untracked files and incoming changes
+
+### Changed
+- Improved uncommitted files detection to distinguish between untracked vs modified/staged files
+- Enhanced skip reason logging to provide more specific information about why repos were skipped
+
 ---
 
 ## [1.0.1] - 2025-10-25

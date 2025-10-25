@@ -5,7 +5,7 @@ import re
 import subprocess
 import time
 import traceback
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
@@ -49,17 +49,10 @@ class PullResult:
     deletions: int = 0
 
     # Detailed change information
-    commits: list[CommitInfo] = None
-    files: list[FileChange] = None
+    commits: list[CommitInfo] = field(default_factory=list)
+    files: list[FileChange] = field(default_factory=list)
     old_commit: Optional[str] = None
     new_commit: Optional[str] = None
-
-    def __post_init__(self):
-        """Initialize empty lists if None."""
-        if self.commits is None:
-            self.commits = []
-        if self.files is None:
-            self.files = []
 
 
 def _run_git_command(
@@ -266,6 +259,113 @@ def get_uncommitted_files(repo_path: Path, timeout: int = 10) -> list[Uncommitte
         return []
 
 
+def has_only_untracked_files(uncommitted_files: list[UncommittedFile]) -> bool:
+    """
+    Check if the uncommitted files are only untracked files.
+
+    Args:
+        uncommitted_files: List of UncommittedFile objects
+
+    Returns:
+        True if all files are untracked, False if there are any staged/modified files
+    """
+    if not uncommitted_files:
+        return True  # No uncommitted files at all
+
+    # Check if all files have status "??" (untracked)
+    return all(file.status == "??" or file.status == "?" for file in uncommitted_files)
+
+
+def check_for_pull_conflicts(repo_path: Path, timeout: int = 10) -> tuple[bool, Optional[str]]:
+    """
+    Check if a git pull would cause conflicts with untracked files.
+
+    This performs the safety check suggested in GitHub issue #2:
+    1. Fetch from origin
+    2. Check if any files that would be pulled conflict with local untracked files
+
+    Args:
+        repo_path: Path to the git repository
+        timeout: Command timeout in seconds
+
+    Returns:
+        tuple of (is_safe: bool, error_message: Optional[str])
+        - is_safe is True if pull is safe to proceed
+        - error_message is set if there's a conflict or error
+    """
+    try:
+        # First, fetch from origin to get the latest refs
+        fetch_result = _run_git_command(["git", "fetch"], cwd=repo_path, timeout=timeout)
+        if fetch_result.returncode != 0:
+            return False, f"Failed to fetch: {fetch_result.stderr.strip()}"
+
+        # Get current branch
+        branch = get_current_branch(repo_path, timeout=timeout)
+        if not branch:
+            return False, "Cannot determine current branch"
+
+        # Get the upstream branch
+        upstream_result = _run_git_command(
+            ["git", "rev-parse", "--abbrev-ref", "@{upstream}"],
+            cwd=repo_path,
+            timeout=timeout,
+        )
+        if upstream_result.returncode != 0:
+            return False, "No upstream branch configured"
+
+        upstream = upstream_result.stdout.strip()
+
+        # Check what files would change if we pulled
+        # Use git diff --name-status to see what would be updated
+        diff_result = _run_git_command(
+            ["git", "diff", "--name-status", "HEAD", upstream],
+            cwd=repo_path,
+            timeout=timeout,
+        )
+
+        if diff_result.returncode != 0:
+            return False, f"Failed to check differences: {diff_result.stderr.strip()}"
+
+        # If there are no differences, it's safe
+        if not diff_result.stdout.strip():
+            return True, None
+
+        # Get list of files that would be changed by pull
+        files_to_pull = set()
+        for line in diff_result.stdout.strip().split("\n"):
+            if not line:
+                continue
+            parts = line.split("\t", 2)
+            if len(parts) >= 2:
+                # Format is: STATUS\tFILENAME or STATUS\tOLDNAME\tNEWNAME (for renames)
+                if len(parts) == 3:
+                    # Rename case - check both old and new names
+                    files_to_pull.add(parts[1])
+                    files_to_pull.add(parts[2])
+                else:
+                    files_to_pull.add(parts[1])
+
+        # Get list of untracked files
+        uncommitted_files = get_uncommitted_files(repo_path, timeout=timeout)
+        untracked_files = {file.path for file in uncommitted_files if file.status == "??" or file.status == "?"}
+
+        # Check for conflicts
+        conflicts = files_to_pull & untracked_files
+        if conflicts:
+            conflict_list = ", ".join(sorted(list(conflicts)[:3]))  # Show first 3
+            if len(conflicts) > 3:
+                conflict_list += f", ... ({len(conflicts)} total)"
+            return False, f"Untracked files would be overwritten: {conflict_list}"
+
+        # No conflicts found, safe to pull
+        return True, None
+
+    except subprocess.TimeoutExpired:
+        return False, "Timeout while checking for conflicts"
+    except Exception as e:
+        return False, f"Error checking for conflicts: {e}"
+
+
 def get_git_version() -> str:
     """
     Get the git version string.
@@ -299,14 +399,14 @@ def _parse_git_pull_output(output: str) -> dict:
 
     Returns:
         dict with parsed information: {
-            'old_commit': str,
-            'new_commit': str,
+            'old_commit': str | None,
+            'new_commit': str | None,
             'files_changed': int,
             'insertions': int,
             'deletions': int
         }
     """
-    result = {
+    result: dict = {
         "old_commit": None,
         "new_commit": None,
         "files_changed": 0,
@@ -823,6 +923,7 @@ async def _async_run_git_command(
     Raises:
         asyncio.TimeoutError: If command times out
     """
+    process = None
     try:
         process = await asyncio.create_subprocess_exec(
             *command,
@@ -843,12 +944,12 @@ async def _async_run_git_command(
 
     except TimeoutError as e:
         # Try to kill the process if it's still running
-        try:
-            if process.returncode is None:
+        if process and process.returncode is None:
+            try:
                 process.kill()
                 await process.wait()
-        except Exception:
-            pass
+            except Exception:
+                pass
         raise TimeoutError(f"Command timed out after {timeout} seconds") from e
 
 
@@ -1008,6 +1109,93 @@ async def async_get_uncommitted_files(repo_path: Path, timeout: int = 10) -> lis
 
     except (TimeoutError, Exception):
         return []
+
+
+async def async_check_for_pull_conflicts(repo_path: Path, timeout: int = 10) -> tuple[bool, Optional[str]]:
+    """
+    Check if a git pull would cause conflicts with untracked files (async version).
+
+    This performs the safety check suggested in GitHub issue #2:
+    1. Fetch from origin
+    2. Check if any files that would be pulled conflict with local untracked files
+
+    Args:
+        repo_path: Path to the git repository
+        timeout: Command timeout in seconds
+
+    Returns:
+        tuple of (is_safe: bool, error_message: Optional[str])
+        - is_safe is True if pull is safe to proceed
+        - error_message is set if there's a conflict or error
+    """
+    try:
+        # First, fetch from origin to get the latest refs
+        returncode, _, stderr = await _async_run_git_command(["git", "fetch"], cwd=repo_path, timeout=timeout)
+        if returncode != 0:
+            return False, f"Failed to fetch: {stderr.strip()}"
+
+        # Get current branch
+        branch = await async_get_current_branch(repo_path, timeout=timeout)
+        if not branch:
+            return False, "Cannot determine current branch"
+
+        # Get the upstream branch
+        returncode, stdout, _ = await _async_run_git_command(
+            ["git", "rev-parse", "--abbrev-ref", "@{upstream}"],
+            cwd=repo_path,
+            timeout=timeout,
+        )
+        if returncode != 0:
+            return False, "No upstream branch configured"
+
+        upstream = stdout.strip()
+
+        # Check what files would change if we pulled
+        returncode, stdout, stderr = await _async_run_git_command(
+            ["git", "diff", "--name-status", "HEAD", upstream],
+            cwd=repo_path,
+            timeout=timeout,
+        )
+
+        if returncode != 0:
+            return False, f"Failed to check differences: {stderr.strip()}"
+
+        # If there are no differences, it's safe
+        if not stdout.strip():
+            return True, None
+
+        # Get list of files that would be changed by pull
+        files_to_pull = set()
+        for line in stdout.strip().split("\n"):
+            if not line:
+                continue
+            parts = line.split("\t", 2)
+            if len(parts) >= 2:
+                if len(parts) == 3:
+                    files_to_pull.add(parts[1])
+                    files_to_pull.add(parts[2])
+                else:
+                    files_to_pull.add(parts[1])
+
+        # Get list of untracked files
+        uncommitted_files = await async_get_uncommitted_files(repo_path, timeout=timeout)
+        untracked_files = {file.path for file in uncommitted_files if file.status == "??" or file.status == "?"}
+
+        # Check for conflicts
+        conflicts = files_to_pull & untracked_files
+        if conflicts:
+            conflict_list = ", ".join(sorted(list(conflicts)[:3]))
+            if len(conflicts) > 3:
+                conflict_list += f", ... ({len(conflicts)} total)"
+            return False, f"Untracked files would be overwritten: {conflict_list}"
+
+        # No conflicts found, safe to pull
+        return True, None
+
+    except TimeoutError:
+        return False, "Timeout while checking for conflicts"
+    except Exception as e:
+        return False, f"Error checking for conflicts: {e}"
 
 
 async def _async_get_commit_details(
@@ -1248,6 +1436,7 @@ async def async_pull_repository_detailed(repo_path: Path, timeout: int = 60) -> 
 async def async_update_repository_with_log(
     repo: RepoInfo,
     skip_dirty: bool = True,
+    ignore_untracked: bool = False,
     timeout: int = 60,
 ) -> tuple[RepoInfo, RepoLogEntry]:
     """
@@ -1258,6 +1447,7 @@ async def async_update_repository_with_log(
     Args:
         repo: RepoInfo object to update
         skip_dirty: If True, skip repos with uncommitted changes
+        ignore_untracked: If True, allow updates when only untracked files are present
         timeout: Command timeout in seconds
 
     Returns:
@@ -1310,14 +1500,32 @@ async def async_update_repository_with_log(
 
         # Check if working directory is clean
         if not status["is_clean"] and skip_dirty:
-            repo.status = RepoStatus.SKIPPED
-            repo.message = "Uncommitted changes"
-            repo_log.status = "skipped"
-            repo_log.skip_reason = "Repository has uncommitted changes"
-            repo_log.message = repo.message
-            # Capture the uncommitted files for detailed logging
-            repo_log.uncommitted_files = await async_get_uncommitted_files(repo.path, timeout=timeout)
-            return repo, repo_log
+            # Get uncommitted files to check if they're only untracked
+            uncommitted_files = await async_get_uncommitted_files(repo.path, timeout=timeout)
+            only_untracked = has_only_untracked_files(uncommitted_files)
+
+            # If ignore_untracked is enabled and files are only untracked, check for conflicts
+            if ignore_untracked and only_untracked:
+                # Perform safety check before allowing update
+                is_safe, conflict_msg = await async_check_for_pull_conflicts(repo.path, timeout=timeout)
+                if not is_safe:
+                    repo.status = RepoStatus.SKIPPED
+                    repo.message = f"Untracked files conflict with pull: {conflict_msg}"
+                    repo_log.status = "skipped"
+                    repo_log.skip_reason = "Untracked files would be overwritten by pull"
+                    repo_log.message = repo.message
+                    repo_log.uncommitted_files = uncommitted_files
+                    return repo, repo_log
+                # If safe, continue with the pull (don't skip)
+            else:
+                # Either not only untracked, or ignore_untracked is False
+                repo.status = RepoStatus.SKIPPED
+                repo.message = "Uncommitted changes"
+                repo_log.status = "skipped"
+                repo_log.skip_reason = "Repository has uncommitted changes"
+                repo_log.message = repo.message
+                repo_log.uncommitted_files = uncommitted_files
+                return repo, repo_log
 
         # Execute git pull with detailed results
         pull_result = await async_pull_repository_detailed(repo.path, timeout=timeout)

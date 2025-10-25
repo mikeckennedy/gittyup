@@ -194,7 +194,10 @@ class TestCLIWorkflow:
 
         # Mock update to return tuple of (repo, repo_log) - must be async
         async def update_side_effect(
-            repo: RepoInfo, skip_dirty: bool = True, timeout: int = 60
+            repo: RepoInfo,
+            skip_dirty: bool = True,
+            ignore_untracked: bool = False,
+            timeout: int = 60,
         ) -> tuple[RepoInfo, RepoLogEntry]:
             repo.status = RepoStatus.UP_TO_DATE
             repo.message = "Already up to date"
@@ -228,7 +231,10 @@ class TestCLIWorkflow:
 
         # Mock update to return tuple with error status - must be async
         async def update_side_effect(
-            repo: RepoInfo, skip_dirty: bool = True, timeout: int = 60
+            repo: RepoInfo,
+            skip_dirty: bool = True,
+            ignore_untracked: bool = False,
+            timeout: int = 60,
         ) -> tuple[RepoInfo, RepoLogEntry]:
             repo.status = RepoStatus.ERROR
             repo.error = "Network timeout"
@@ -266,7 +272,10 @@ class TestCLIVerbosity:
         mock_scan.return_value = result
 
         async def update_side_effect(
-            repo: RepoInfo, skip_dirty: bool = True, timeout: int = 60
+            repo: RepoInfo,
+            skip_dirty: bool = True,
+            ignore_untracked: bool = False,
+            timeout: int = 60,
         ) -> tuple[RepoInfo, RepoLogEntry]:
             if repo.name == "repo1":
                 repo.status = RepoStatus.UP_TO_DATE
@@ -308,7 +317,10 @@ class TestCLIVerbosity:
         mock_scan.return_value = result
 
         async def update_side_effect(
-            repo: RepoInfo, skip_dirty: bool = True, timeout: int = 60
+            repo: RepoInfo,
+            skip_dirty: bool = True,
+            ignore_untracked: bool = False,
+            timeout: int = 60,
         ) -> tuple[RepoInfo, RepoLogEntry]:
             repo.status = RepoStatus.UP_TO_DATE
             repo.message = "Already up to date"
@@ -340,7 +352,10 @@ class TestCLIVerbosity:
         mock_scan.return_value = result
 
         async def update_side_effect(
-            repo: RepoInfo, skip_dirty: bool = True, timeout: int = 60
+            repo: RepoInfo,
+            skip_dirty: bool = True,
+            ignore_untracked: bool = False,
+            timeout: int = 60,
         ) -> tuple[RepoInfo, RepoLogEntry]:
             if repo.name == "repo1":
                 repo.status = RepoStatus.UP_TO_DATE
@@ -430,7 +445,10 @@ class TestCLIIntegration:
 
         # Mock update - async version
         async def update_side_effect(
-            repo: RepoInfo, skip_dirty: bool = True, timeout: int = 60
+            repo: RepoInfo,
+            skip_dirty: bool = True,
+            ignore_untracked: bool = False,
+            timeout: int = 60,
         ) -> tuple[RepoInfo, RepoLogEntry]:
             repo.status = RepoStatus.UP_TO_DATE
             repo.message = "Already up to date"
@@ -537,7 +555,10 @@ class TestCLILogging:
 
         # Mock update - async version
         async def update_side_effect(
-            repo_info: RepoInfo, skip_dirty: bool = True, timeout: int = 60
+            repo_info: RepoInfo,
+            skip_dirty: bool = True,
+            ignore_untracked: bool = False,
+            timeout: int = 60,
         ) -> tuple[RepoInfo, RepoLogEntry]:
             repo_info.status = RepoStatus.UP_TO_DATE
             repo_log = RepoLogEntry(path=str(repo_info.path), name=repo_info.name, status="up_to_date", duration_ms=100)
@@ -572,7 +593,10 @@ class TestCLILogging:
 
         # Mock update - async version (not actually called in dry-run but needs to be here)
         async def update_side_effect(
-            repo_info: RepoInfo, skip_dirty: bool = True, timeout: int = 60
+            repo_info: RepoInfo,
+            skip_dirty: bool = True,
+            ignore_untracked: bool = False,
+            timeout: int = 60,
         ) -> tuple[RepoInfo, RepoLogEntry]:
             repo_info.status = RepoStatus.UP_TO_DATE
             repo_log = RepoLogEntry(path=str(repo_info.path), name=repo_info.name, status="up_to_date", duration_ms=100)
@@ -607,7 +631,10 @@ class TestCLILogging:
 
         # Mock update - async version
         async def update_side_effect(
-            repo_info: RepoInfo, skip_dirty: bool = True, timeout: int = 60
+            repo_info: RepoInfo,
+            skip_dirty: bool = True,
+            ignore_untracked: bool = False,
+            timeout: int = 60,
         ) -> tuple[RepoInfo, RepoLogEntry]:
             repo_info.status = RepoStatus.UP_TO_DATE
             repo_log = RepoLogEntry(path=str(repo_info.path), name=repo_info.name, status="up_to_date", duration_ms=100)

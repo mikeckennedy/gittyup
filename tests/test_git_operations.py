@@ -13,17 +13,19 @@ from gittyup.git_operations import (
     _get_commit_details,
     _get_file_changes,
     _parse_git_pull_output,
+    check_for_pull_conflicts,
     check_git_installed,
     get_current_branch,
     get_git_version,
     get_repo_status,
     get_uncommitted_files,
+    has_only_untracked_files,
     pull_repository,
     pull_repository_detailed,
     update_repository,
     update_repository_with_log,
 )
-from gittyup.models import CommitInfo, FileChange, RepoInfo, RepoStatus
+from gittyup.models import CommitInfo, FileChange, RepoInfo, RepoStatus, UncommittedFile
 
 
 class TestCheckGitInstalled:

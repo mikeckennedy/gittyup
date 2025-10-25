@@ -51,6 +51,7 @@ async def async_update_repos_in_batches(
     verbose: bool,
     dry_run: bool,
     result: ScanResult,
+    ignore_untracked: bool = False,
 ) -> list[RepoLogEntry]:
     """
     Update repositories in batches concurrently.
@@ -62,6 +63,7 @@ async def async_update_repos_in_batches(
         verbose: Show all output including up-to-date repos
         dry_run: Don't actually update, just show what would be done
         result: ScanResult to add errors to
+        ignore_untracked: Allow updates even when untracked files are present
 
     Returns:
         List of RepoLogEntry objects in the same order as input repos
@@ -95,13 +97,17 @@ async def async_update_repos_in_batches(
                 batch_results.append((repo, repo_log))
         else:
             # Actually update repositories concurrently
-            tasks = [git_operations.async_update_repository_with_log(repo) for repo in batch]
+            tasks = [
+                git_operations.async_update_repository_with_log(repo, ignore_untracked=ignore_untracked)
+                for repo in batch
+            ]
 
+            batch_results: list[tuple[RepoInfo, RepoLogEntry]] = []
             try:
-                batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+                batch_results_raw = await asyncio.gather(*tasks, return_exceptions=True)
 
                 # Handle any exceptions from gather
-                for i, result_item in enumerate(batch_results):
+                for i, result_item in enumerate(batch_results_raw):
                     if isinstance(result_item, Exception):
                         # Handle exception
                         repo = batch[i]
@@ -117,7 +123,10 @@ async def async_update_repos_in_batches(
                             duration_ms=0,
                             error=str(result_item),
                         )
-                        batch_results[i] = (repo, repo_log)
+                        batch_results.append((repo, repo_log))
+                    else:
+                        # Successful result - should be tuple[RepoInfo, RepoLogEntry]
+                        batch_results.append(result_item)  # type: ignore
 
             except Exception as e:
                 # Catch any unexpected errors
@@ -270,6 +279,11 @@ def save_operation_log(
     is_flag=True,
     help="Show detailed information about the last run for this directory.",
 )
+@click.option(
+    "--ignore-untracked",
+    is_flag=True,
+    help="Allow updates even when untracked files are present (with safety checks).",
+)
 def main(
     directory: Path,
     dry_run: bool,
@@ -281,6 +295,7 @@ def main(
     sync: bool,
     version: bool,
     explain: bool,
+    ignore_untracked: bool,
 ) -> None:
     """
     Gitty Up - Automatically discover and update all git repositories in a directory tree.
@@ -379,6 +394,7 @@ def main(
             verbose=verbose,
             dry_run=dry_run,
             result=result,
+            ignore_untracked=ignore_untracked,
         )
     )
 
