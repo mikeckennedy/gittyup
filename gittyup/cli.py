@@ -52,6 +52,7 @@ async def async_update_repos_in_batches(
     dry_run: bool,
     result: ScanResult,
     ignore_untracked: bool = False,
+    ignore_all_changes: bool = False,
 ) -> list[RepoLogEntry]:
     """
     Update repositories in batches concurrently.
@@ -64,6 +65,7 @@ async def async_update_repos_in_batches(
         dry_run: Don't actually update, just show what would be done
         result: ScanResult to add errors to
         ignore_untracked: Allow updates even when untracked files are present
+        ignore_all_changes: Allow updates even with uncommitted changes (if no merge conflict)
 
     Returns:
         List of RepoLogEntry objects in the same order as input repos
@@ -98,7 +100,9 @@ async def async_update_repos_in_batches(
         else:
             # Actually update repositories concurrently
             tasks = [
-                git_operations.async_update_repository_with_log(repo, ignore_untracked=ignore_untracked)
+                git_operations.async_update_repository_with_log(
+                    repo, ignore_untracked=ignore_untracked, ignore_all_changes=ignore_all_changes
+                )
                 for repo in batch
             ]
 
@@ -284,6 +288,11 @@ def save_operation_log(
     is_flag=True,
     help="Allow updates even when untracked files are present (with safety checks).",
 )
+@click.option(
+    "--ignore-all-changes",
+    is_flag=True,
+    help="Allow updates even with uncommitted changes if no merge conflict would occur.",
+)
 def main(
     directory: Path,
     dry_run: bool,
@@ -296,6 +305,7 @@ def main(
     version: bool,
     explain: bool,
     ignore_untracked: bool,
+    ignore_all_changes: bool,
 ) -> None:
     """
     Gitty Up - Automatically discover and update all git repositories in a directory tree.
@@ -333,6 +343,11 @@ def main(
     # Validate mutually exclusive options
     if quiet and verbose:
         output.print_error("Cannot use both --quiet and --verbose flags")
+        sys.exit(1)
+
+    if ignore_untracked and ignore_all_changes:
+        output.print_error("Cannot use both --ignore-untracked and --ignore-all-changes flags")
+        output.print_info("Use --ignore-all-changes for more permissive behavior")
         sys.exit(1)
 
     # Handle --sync flag (forces batch_size to 1)
@@ -395,6 +410,7 @@ def main(
             dry_run=dry_run,
             result=result,
             ignore_untracked=ignore_untracked,
+            ignore_all_changes=ignore_all_changes,
         )
     )
 

@@ -197,6 +197,7 @@ class TestCLIWorkflow:
             repo: RepoInfo,
             skip_dirty: bool = True,
             ignore_untracked: bool = False,
+            ignore_all_changes: bool = False,
             timeout: int = 60,
         ) -> tuple[RepoInfo, RepoLogEntry]:
             repo.status = RepoStatus.UP_TO_DATE
@@ -234,6 +235,7 @@ class TestCLIWorkflow:
             repo: RepoInfo,
             skip_dirty: bool = True,
             ignore_untracked: bool = False,
+            ignore_all_changes: bool = False,
             timeout: int = 60,
         ) -> tuple[RepoInfo, RepoLogEntry]:
             repo.status = RepoStatus.ERROR
@@ -275,6 +277,7 @@ class TestCLIVerbosity:
             repo: RepoInfo,
             skip_dirty: bool = True,
             ignore_untracked: bool = False,
+            ignore_all_changes: bool = False,
             timeout: int = 60,
         ) -> tuple[RepoInfo, RepoLogEntry]:
             if repo.name == "repo1":
@@ -320,6 +323,7 @@ class TestCLIVerbosity:
             repo: RepoInfo,
             skip_dirty: bool = True,
             ignore_untracked: bool = False,
+            ignore_all_changes: bool = False,
             timeout: int = 60,
         ) -> tuple[RepoInfo, RepoLogEntry]:
             repo.status = RepoStatus.UP_TO_DATE
@@ -355,6 +359,7 @@ class TestCLIVerbosity:
             repo: RepoInfo,
             skip_dirty: bool = True,
             ignore_untracked: bool = False,
+            ignore_all_changes: bool = False,
             timeout: int = 60,
         ) -> tuple[RepoInfo, RepoLogEntry]:
             if repo.name == "repo1":
@@ -448,6 +453,7 @@ class TestCLIIntegration:
             repo: RepoInfo,
             skip_dirty: bool = True,
             ignore_untracked: bool = False,
+            ignore_all_changes: bool = False,
             timeout: int = 60,
         ) -> tuple[RepoInfo, RepoLogEntry]:
             repo.status = RepoStatus.UP_TO_DATE
@@ -558,6 +564,7 @@ class TestCLILogging:
             repo_info: RepoInfo,
             skip_dirty: bool = True,
             ignore_untracked: bool = False,
+            ignore_all_changes: bool = False,
             timeout: int = 60,
         ) -> tuple[RepoInfo, RepoLogEntry]:
             repo_info.status = RepoStatus.UP_TO_DATE
@@ -596,6 +603,7 @@ class TestCLILogging:
             repo_info: RepoInfo,
             skip_dirty: bool = True,
             ignore_untracked: bool = False,
+            ignore_all_changes: bool = False,
             timeout: int = 60,
         ) -> tuple[RepoInfo, RepoLogEntry]:
             repo_info.status = RepoStatus.UP_TO_DATE
@@ -634,6 +642,7 @@ class TestCLILogging:
             repo_info: RepoInfo,
             skip_dirty: bool = True,
             ignore_untracked: bool = False,
+            ignore_all_changes: bool = False,
             timeout: int = 60,
         ) -> tuple[RepoInfo, RepoLogEntry]:
             repo_info.status = RepoStatus.UP_TO_DATE
@@ -673,6 +682,7 @@ class TestCLILogging:
             repo_info: RepoInfo,
             skip_dirty: bool = True,
             ignore_untracked: bool = False,
+            ignore_all_changes: bool = False,
             timeout: int = 60,
         ) -> tuple[RepoInfo, RepoLogEntry]:
             repo_info.status = RepoStatus.UPDATED
@@ -714,6 +724,7 @@ class TestCLILogging:
             repo_info: RepoInfo,
             skip_dirty: bool = True,
             ignore_untracked: bool = False,
+            ignore_all_changes: bool = False,
             timeout: int = 60,
         ) -> tuple[RepoInfo, RepoLogEntry]:
             repo_info.status = RepoStatus.UPDATED

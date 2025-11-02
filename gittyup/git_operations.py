@@ -1234,6 +1234,93 @@ async def async_check_for_pull_conflicts(repo_path: Path, timeout: int = 10) -> 
         return False, f"Error checking for conflicts: {e}"
 
 
+async def async_check_for_merge_conflicts(repo_path: Path, timeout: int = 10) -> tuple[bool, Optional[str]]:
+    """
+    Check if a git pull would cause merge conflicts with any uncommitted changes.
+
+    This checks if files that would be changed by a pull overlap with files
+    that have uncommitted changes (modified, staged, or untracked).
+
+    Args:
+        repo_path: Path to the git repository
+        timeout: Command timeout in seconds
+
+    Returns:
+        tuple of (is_safe: bool, error_message: Optional[str])
+        - is_safe is True if pull is safe to proceed
+        - error_message is set if there's a conflict or error
+    """
+    try:
+        # First, fetch from origin to get the latest refs
+        returncode, _, stderr = await _async_run_git_command(["git", "fetch"], cwd=repo_path, timeout=timeout)
+        if returncode != 0:
+            return False, f"Failed to fetch: {stderr.strip()}"
+
+        # Get current branch
+        branch = await async_get_current_branch(repo_path, timeout=timeout)
+        if not branch:
+            return False, "Cannot determine current branch"
+
+        # Get the upstream branch
+        returncode, stdout, _ = await _async_run_git_command(
+            ["git", "rev-parse", "--abbrev-ref", "@{upstream}"],
+            cwd=repo_path,
+            timeout=timeout,
+        )
+        if returncode != 0:
+            return False, "No upstream branch configured"
+
+        upstream = stdout.strip()
+
+        # Check what files would change if we pulled
+        returncode, stdout, stderr = await _async_run_git_command(
+            ["git", "diff", "--name-status", "HEAD", upstream],
+            cwd=repo_path,
+            timeout=timeout,
+        )
+
+        if returncode != 0:
+            return False, f"Failed to check differences: {stderr.strip()}"
+
+        # If there are no differences, it's safe
+        if not stdout.strip():
+            return True, None
+
+        # Get list of files that would be changed by pull
+        files_to_pull = set()
+        for line in stdout.strip().split("\n"):
+            if not line:
+                continue
+            parts = line.split("\t", 2)
+            if len(parts) >= 2:
+                if len(parts) == 3:
+                    # Rename case - check both old and new names
+                    files_to_pull.add(parts[1])
+                    files_to_pull.add(parts[2])
+                else:
+                    files_to_pull.add(parts[1])
+
+        # Get list of ALL uncommitted files (modified, staged, untracked)
+        uncommitted_files = await async_get_uncommitted_files(repo_path, timeout=timeout)
+        uncommitted_paths = {file.path for file in uncommitted_files}
+
+        # Check for conflicts - any overlap between files to pull and uncommitted files
+        conflicts = files_to_pull & uncommitted_paths
+        if conflicts:
+            conflict_list = ", ".join(sorted(list(conflicts)[:3]))
+            if len(conflicts) > 3:
+                conflict_list += f", ... ({len(conflicts)} total)"
+            return False, f"Uncommitted changes would conflict with pull: {conflict_list}"
+
+        # No conflicts found, safe to pull
+        return True, None
+
+    except TimeoutError:
+        return False, "Timeout while checking for conflicts"
+    except Exception as e:
+        return False, f"Error checking for conflicts: {e}"
+
+
 async def _async_get_commit_details(
     repo_path: Path, old_hash: str, new_hash: str, timeout: int = 10
 ) -> list[CommitInfo]:
@@ -1473,6 +1560,7 @@ async def async_update_repository_with_log(
     repo: RepoInfo,
     skip_dirty: bool = True,
     ignore_untracked: bool = False,
+    ignore_all_changes: bool = False,
     timeout: int = 60,
 ) -> tuple[RepoInfo, RepoLogEntry]:
     """
@@ -1484,6 +1572,7 @@ async def async_update_repository_with_log(
         repo: RepoInfo object to update
         skip_dirty: If True, skip repos with uncommitted changes
         ignore_untracked: If True, allow updates when only untracked files are present
+        ignore_all_changes: If True, allow updates even with modified files (if no merge conflict)
         timeout: Command timeout in seconds
 
     Returns:
@@ -1540,8 +1629,21 @@ async def async_update_repository_with_log(
             uncommitted_files = await async_get_uncommitted_files(repo.path, timeout=timeout)
             only_untracked = has_only_untracked_files(uncommitted_files)
 
-            # If ignore_untracked is enabled and files are only untracked, check for conflicts
-            if ignore_untracked and only_untracked:
+            # If ignore_all_changes is enabled, check for merge conflicts
+            if ignore_all_changes:
+                # Perform safety check before allowing update
+                is_safe, conflict_msg = await async_check_for_merge_conflicts(repo.path, timeout=timeout)
+                if not is_safe:
+                    repo.status = RepoStatus.SKIPPED
+                    repo.message = f"Would cause merge conflict: {conflict_msg}"
+                    repo_log.status = "skipped"
+                    repo_log.skip_reason = "Uncommitted changes would cause merge conflict"
+                    repo_log.message = repo.message
+                    repo_log.uncommitted_files = uncommitted_files
+                    return repo, repo_log
+                # If safe, continue with the pull (don't skip)
+            elif ignore_untracked and only_untracked:
+                # If ignore_untracked is enabled and files are only untracked, check for conflicts
                 # Perform safety check before allowing update
                 is_safe, conflict_msg = await async_check_for_pull_conflicts(repo.path, timeout=timeout)
                 if not is_safe:
@@ -1554,7 +1656,7 @@ async def async_update_repository_with_log(
                     return repo, repo_log
                 # If safe, continue with the pull (don't skip)
             else:
-                # Either not only untracked, or ignore_untracked is False
+                # Either not only untracked, or neither flag is set
                 repo.status = RepoStatus.SKIPPED
                 repo.message = "Uncommitted changes"
                 repo_log.status = "skipped"

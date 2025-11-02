@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `--ignore-all-changes` option to allow updates even with uncommitted changes (modified/staged/untracked files)
+  - Performs safety checks to ensure no merge conflicts would occur
+  - Fetches from origin and checks if files to be pulled overlap with files that have uncommitted changes
+  - Only proceeds with pull if no conflicts detected between uncommitted files and incoming changes
+  - More permissive than `--ignore-untracked` which only works with untracked files
+  - Mutually exclusive with `--ignore-untracked` flag
+- New `async_check_for_merge_conflicts()` function to detect potential conflicts between uncommitted changes and incoming pull
+  - Checks all types of uncommitted files (modified, staged, untracked)
+  - Provides detailed error messages when conflicts are detected
+
+### Changed
+- Updated CLI validation to prevent using both `--ignore-untracked` and `--ignore-all-changes` together
+- Enhanced repository update logic to handle different types of uncommitted changes more granularly
+
 ---
 
 ## [1.1.0] - 2025-10-25

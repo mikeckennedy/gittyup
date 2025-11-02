@@ -146,6 +146,12 @@ gittyup ~/dev --max-depth 3 --exclude archive --verbose
 ```
 Scan thoroughly but skip archived projects.
 
+**The Safe Update with Work in Progress** 🔧
+```bash
+gittyup --ignore-all-changes
+```
+Update repos even when you have uncommitted changes, but only if no merge conflict would occur.
+
 **The Accountability Check** 🔍
 ```bash
 gittyup --explain
@@ -184,6 +190,8 @@ gittyup [DIRECTORY] [OPTIONS]
 | `-e, --exclude PATTERN` | Skip directories matching pattern | None |
 | `-v, --verbose` | Show all repos, including up-to-date | Normal |
 | `-q, --quiet` | Only show errors | Normal |
+| `--ignore-untracked` | Allow updates even when untracked files present | Disabled |
+| `--ignore-all-changes` | Allow updates with uncommitted changes (if safe) | Disabled |
 | `--explain` | Show detailed history of last run | Disabled |
 | `--version` | Display version information | - |
 | `--help` | Show help message | - |
@@ -420,7 +428,25 @@ GittyUp knows the difference between real changes and desktop clutter. These com
 <details>
 <summary><strong>Will Gitty Up overwrite my local changes?</strong></summary>
 
-**Absolutely not.** Gitty Up includes comprehensive safety checks and will skip any repository with uncommitted changes. Your local work is always protected.
+**Absolutely not.** By default, Gitty Up includes comprehensive safety checks and will skip any repository with uncommitted changes. Your local work is always protected.
+
+If you want more control, use:
+- `--ignore-untracked`: Allows updates when only untracked files are present (with safety checks)
+- `--ignore-all-changes`: Allows updates even with modified files, but only if no merge conflict would occur
+</details>
+
+<details>
+<summary><strong>What's the difference between --ignore-untracked and --ignore-all-changes?</strong></summary>
+
+- **`--ignore-untracked`**: Only works when you have untracked files (new files not in git). It checks if those files would conflict with incoming changes and only proceeds if safe.
+  
+- **`--ignore-all-changes`**: Works with any uncommitted changes (modified, staged, or untracked files). It performs a more comprehensive safety check—fetches from origin and verifies that none of your uncommitted files would conflict with incoming changes. Only proceeds if the pull can be done safely.
+
+**When to use which:**
+- Use `--ignore-untracked` if you often have temporary/working files that aren't tracked
+- Use `--ignore-all-changes` if you need to pull updates even when you have work in progress, but want assurance you won't get merge conflicts
+
+Both flags are mutually exclusive—use the one that fits your workflow.
 </details>
 
 <details>
